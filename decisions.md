@@ -71,3 +71,21 @@ A running log. Each entry is one design call: what I did, why, and the alternati
 - Decision: When the from-state is `in_service`, the location-scan step renders an amber banner with the literal wording: "<tag> is currently in service at <location>. Scanning a storage location will move it to storage." Drop "de-rack" from user-facing copy entirely; it's jargon.
   Reasoning: A tech taking an instrument out of service deserves to see what they're about to do in physical terms ("move it to storage") rather than technical terms ("de-rack"). The amber colour ("attention, not error") differentiates this from a normal store-from-received which gets a calm blue banner. The whole point is that an inadvertent take-out-of-service is much worse than an inadvertent put-on-shelf, and the UI should reflect that asymmetry.
   Alternative: Same neutral framing for both cases. Rejected — it would hide the importance of the in_service path. Also rejected: a confirmation modal ("Are you sure?"). Modals are friction without payoff; the amber strip + the literal description does the job without a second tap.
+
+## /tech/deploy — write today's date as `capitalized_on`
+
+- Decision: The finance write-back sends `capitalized_on` as today's YYYY-MM-DD on every deploy.
+  Reasoning: The deploy IS the capitalization moment. The seed's `capitalized_on` value is a starting state, not truth — it's whatever the synthetic data generator wrote. Sending today's date demonstrates the write-back is real (a subsequent GET will see the new date) and gives the manager an audit-relevant signal: "this asset was capitalized when this scan happened." Without it, the finance side looks frozen-in-the-past and reconcile loses a lever.
+  Alternative: Omit `capitalized_on` and let the mock's merge preserve the seed value. Less disruption to the demo data, but the write-back becomes invisible — the only thing changing on finance's side is `status`, which was already `capitalized` for most rows.
+
+## /tech/deploy — no defensive pre-fetch in the server route
+
+- Decision: The deploy route at `app/api/scans/deploy/route.ts` does NOT pre-fetch the asset. It validates the location body, submits the upstream scan, and fans out both write-backs unconditionally on success.
+  Reasoning: Unlike store, deploy's write-backs don't depend on `from_state` — facilities and finance both fire on every successful deploy. The page already pre-fetches client-side to render the right framing (first-deployment vs from-storage). A server-side pre-fetch would only buy us slightly nicer error messages for `unknown_asset` and `invalid_transition`, both of which the upstream returns clearly anyway. Saves one round-trip per deploy.
+  Alternative: Pre-fetch defensively (same shape as the store route) for symmetry. Considered and rejected — symmetry isn't a goal worth a round-trip, and the asymmetry actually reflects a real difference in what the two routes need to know.
+
+## /tech/deploy — parallel write-backs with `Promise.allSettled`, two named amber strips
+
+- Decision: Facilities and finance write-backs fire in parallel via `Promise.allSettled`. The success response carries two independent discriminator fields (`facilities`, `finance`). On the page, each failed write gets its own amber strip — facilities first, finance second. Same 200 + body-field pattern as store for the same reason (207 is fragile across consumers).
+  Reasoning: The writes are independent — facilities cares about racks, finance cares about books. Parallel is faster (~2× throughput on this leg) and `allSettled` keeps one failure from cascading. Separately-named failure strips are honest about scope: a stale facilities row is something the rack-walking tech notices; a stale finance status is something Monday's books surface. The manager's recovery is different for each, so we should name them differently.
+  Alternative: Sequential calls (run finance only if facilities succeeded). Wrong — they're independent so there's no reason to gate one on the other. Also rejected: a single "downstreams didn't sync" strip in the both-failed case. Compact but less actionable.
