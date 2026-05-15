@@ -41,3 +41,33 @@ A running log. Each entry is one design call: what I did, why, and the alternati
 - Decision: Hide on-file serial during duplicate confirmation. The confirm step shows only tag, model, manufacturer, current state, and custodian. The on-file serial is revealed only when a mismatch fires (where surfacing it is necessary for diagnosis).
   Reasoning: Showing the answer up front primes the tech to type it instead of trusting the scanner read. Verification should be a check, not a confirmation. The whole purpose of confirm-serial is to catch the case where the wrong unit is at the wrong tag — showing the expected value defeats that purpose.
   Alternative: Show on-file serial in the confirm step (friction-reducing — the tech reads both values side by side and clicks ahead). Rejected because it transforms verification into rubber-stamping. Reversed my initial implementation, which had shown the serial in a helper line below the input.
+
+## /tech/receive — prefill from store
+
+- Decision: Receive page reads `?prefill=<tag>` from the URL on mount, populates the tag input, and leaves it focused — but does NOT auto-submit. Tech presses Enter (or rescans) to commit.
+  Reasoning: The prefill arrives when a tech tries to store an unreceived asset and clicks "Go to Receive." Auto-submitting would skip the human read-back step that prevents a "wait, this is the wrong tag" mistake. The tag in the URL came from a scanner one click earlier; it's high-confidence but not unattended-confident.
+  Alternative: Auto-submit on mount. Faster path; one fewer keypress. Rejected for the audit reason above. Also rejected: ignoring the prefill entirely and asking the tech to rescan from scratch — that's hostile when we already know the tag.
+
+## /tech/store — partial-success status code
+
+- Decision: The server route returns HTTP 200 with a `facilities` discriminator field (`"skipped" | "cleared" | "failed"`) rather than HTTP 207 Multi-Status when the upstream scan succeeds but the facilities write-back fails.
+  Reasoning: 207 is correct per the HTTP spec for a multi-resource update with partial outcomes, but it's inconsistently handled by fetch, by typed clients, by middleware, and by error boundaries that treat any non-2xx as "throw." A 200 with an unambiguous discriminator field is impossible to misuse — the client always sees a successful response and branches on a field rather than a status code. The semantic precision of 207 isn't worth the operational fragility.
+  Alternative: 207 Multi-Status. Spec-correct, but invites edge cases at every consumer.
+
+## /tech/store — write-back lives in a server route, not in the page
+
+- Decision: De-rack write-back to `/v1/mock/facilities/spaces` lives in `app/api/scans/store/route.ts`, not in the browser. The page POSTs to `/api/scans/store`, which fans out to the upstream scan + the conditional facilities write.
+  Reasoning: Two reasons. (1) Same security argument as the reconcile route — the bearer token stays server-side. (2) Atomicity-of-presentation — the tech needs ONE answer about what happened, not two separate fetches the browser has to assemble. The server can sequence the calls and report a coherent result (`{ asset, facilities: "cleared" | "failed" | "skipped" }`) with the partial-failure case modeled explicitly.
+  Alternative: Fire both calls from the browser using the api client (works fine because the proxy attaches the token). Rejected because the partial-success state would be the browser's job to coordinate, and a tech who got a green check on the scan and then a red toast on the write-back has no way to know whether ops or facilities is correct.
+
+## /tech/store — pre-fetch to know `from_state`
+
+- Decision: The server route does `api.assets.get(tag)` before submitting the scan, purely to learn `from_state`. The write-back is only fired when `from_state === "in_service"`.
+  Reasoning: The scan endpoint returns the updated asset (with `state: "stored"`) but no `from_state`. To decide whether facilities needs a row removed, the server needs to know the prior state. Pre-fetch is one extra round-trip and produces a deterministic decision. A race is possible (state could change between the pre-fetch and the scan) — if so, the scan will fail with `invalid_transition` and we surface that error directly. The rarer race (`received → stored → in_service` between the two calls) would skip a write-back that should fire; the reconciliation report will flag it. Acceptable.
+  Alternative: Post-fetch the event log to learn the previous state. Same round-trip count, harder to read. Or pass `from_state` from the client (which already pre-fetched to render the right framing). Rejected — the client can lie; the server should not trust it.
+
+## /tech/store — explicit "in service → storage" copy
+
+- Decision: When the from-state is `in_service`, the location-scan step renders an amber banner with the literal wording: "<tag> is currently in service at <location>. Scanning a storage location will move it to storage." Drop "de-rack" from user-facing copy entirely; it's jargon.
+  Reasoning: A tech taking an instrument out of service deserves to see what they're about to do in physical terms ("move it to storage") rather than technical terms ("de-rack"). The amber colour ("attention, not error") differentiates this from a normal store-from-received which gets a calm blue banner. The whole point is that an inadvertent take-out-of-service is much worse than an inadvertent put-on-shelf, and the UI should reflect that asymmetry.
+  Alternative: Same neutral framing for both cases. Rejected — it would hide the importance of the in_service path. Also rejected: a confirmation modal ("Are you sure?"). Modals are friction without payoff; the amber strip + the literal description does the job without a second tap.

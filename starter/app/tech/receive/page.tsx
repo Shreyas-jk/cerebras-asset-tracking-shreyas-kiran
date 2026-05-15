@@ -57,6 +57,17 @@ export default function TechReceivePage(): React.ReactElement {
     lastError: null,
     lookingUp: null,
   });
+  const [prefillTag, setPrefillTag] = useState<string | null>(null);
+
+  // Read ?prefill=<tag> once on mount. We only honour it on the initial scan
+  // input; the tech still has to press Enter to commit.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const candidate = params.get("prefill");
+    if (candidate && TAG_REGEX.test(candidate.toUpperCase())) {
+      setPrefillTag(candidate.toUpperCase());
+    }
+  }, []);
 
   const reset = useCallback(() => {
     setMode({ kind: "tag_scan", lastError: null, lookingUp: null });
@@ -127,6 +138,7 @@ export default function TechReceivePage(): React.ReactElement {
         <TagScanStep
           lastError={mode.lastError}
           lookingUp={mode.lookingUp}
+          prefill={prefillTag}
           onScan={handleTagScan}
         />
       ) : null}
@@ -211,10 +223,12 @@ export default function TechReceivePage(): React.ReactElement {
 function TagScanStep({
   lastError,
   lookingUp,
+  prefill,
   onScan,
 }: {
   lastError: string | null;
   lookingUp: string | null;
+  prefill: string | null;
   onScan: (value: string) => void | Promise<void>;
 }): React.ReactElement {
   return (
@@ -224,6 +238,7 @@ function TagScanStep({
         placeholder="Scan or type an asset tag and press Enter"
         onScan={onScan}
         disabled={lookingUp !== null}
+        defaultValue={prefill ?? undefined}
       />
       <div className="min-h-[1.5rem] text-sm" aria-live="polite">
         {lookingUp ? (
@@ -232,7 +247,12 @@ function TagScanStep({
         {!lookingUp && lastError ? (
           <span className="text-red-700">{lastError}</span>
         ) : null}
-        {!lookingUp && !lastError ? (
+        {!lookingUp && !lastError && prefill ? (
+          <span className="text-gray-600">
+            Prefilled <span className="font-mono">{prefill}</span> from the store screen — press Enter to look it up.
+          </span>
+        ) : null}
+        {!lookingUp && !lastError && !prefill ? (
           <span className="text-gray-500">
             Tags look like <code className="text-gray-700">C0000101</code>.
           </span>
