@@ -288,18 +288,18 @@ function UnknownAssetPanel({ tag }: { tag: string }): React.ReactElement {
 function BlockedPanel({ asset }: { asset: Asset }): React.ReactElement {
   const tag = asset.asset_tag;
   const locStr = locationToString(asset.location);
+  const [showEscalation, setShowEscalation] = useState(false);
   let title: string;
   let body: React.ReactNode;
+  const isRma = asset.state === "rma_pending";
   switch (asset.state) {
     case "in_service":
       title = "Already in service";
       body = (
-        <>
-          <p>
-            {tag} is already in service at {locStr || "—"}. To move it to a different rack:
-            first store it (taking it out of service), then deploy it from storage.
-          </p>
-        </>
+        <p>
+          {tag} is already in service at {locStr || "—"}. To move it to a different rack:
+          first store it (taking it out of service), then deploy it from storage.
+        </p>
       );
       break;
     case "rma_pending":
@@ -307,7 +307,6 @@ function BlockedPanel({ asset }: { asset: Asset }): React.ReactElement {
       body = (
         <p>
           {tag} is in RMA. It has to be returned through the RMA flow before it can be deployed.
-          Talk to a manager.
         </p>
       );
       break;
@@ -324,6 +323,7 @@ function BlockedPanel({ asset }: { asset: Asset }): React.ReactElement {
         </p>
       );
   }
+  const escalation = `Asset ${tag} is in rma_pending; tried to deploy. On file: model ${asset.model} (${asset.manufacturer}), serial ${asset.serial}, custodian ${asset.custodian}, location ${locStr || "—"}. Logged in as ${getCurrentUserId()}.`;
   return (
     <div className="rounded-lg border-2 border-gray-300 bg-gray-50 p-4 space-y-2">
       <div className="text-xs uppercase tracking-wide text-gray-500">{title}</div>
@@ -335,6 +335,27 @@ function BlockedPanel({ asset }: { asset: Asset }): React.ReactElement {
         Custodian: <span className="font-mono">{asset.custodian}</span>
       </div>
       <div className="text-sm text-gray-900 pt-1">{body}</div>
+      {isRma ? (
+        <div className="pt-2 space-y-2">
+          <button
+            type="button"
+            onClick={() => setShowEscalation((s) => !s)}
+            className="text-sm text-blue-700 hover:underline"
+          >
+            {showEscalation ? "Hide manager message" : "Talk to a manager"}
+          </button>
+          {showEscalation ? (
+            <div className="rounded-md border border-gray-300 bg-white p-3 space-y-2">
+              <div className="text-xs uppercase tracking-wide text-gray-500">
+                Copy this to your manager
+              </div>
+              <pre className="text-xs whitespace-pre-wrap font-mono text-gray-900">
+                {escalation}
+              </pre>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
