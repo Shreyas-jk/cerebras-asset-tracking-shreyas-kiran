@@ -240,7 +240,7 @@ function TagScanStep({
         ) : null}
         {!lookingUp && !lastError ? (
           <span className="text-gray-500">
-            Stash an asset on a shelf or de-rack one from service.
+            Move an asset to storage, or take one out of service.
           </span>
         ) : null}
       </div>
