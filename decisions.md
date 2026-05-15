@@ -96,3 +96,22 @@ A running log. Each entry is one design call: what I did, why, and the alternati
   Reasoning: A purer signal would be "this asset has never had a `deploy` event before" — but that requires pulling the event log on every deploy, which is an extra round-trip on the hot scan path. The simpler heuristic is right ~95% of the time (received → deployed is the canonical first deployment) and the false-negative case (received → stored → deployed) gets a duller framing but no actual data error. The audit/event log is authoritative either way; this is just UI accent colour.
   Alternative: Query `api.assets.history(tag)` to check for prior deploy events. Strictly correct, but a fourth round-trip on a hot path for a UX accent isn't worth the latency. Strongly considered as the "correct" answer; rejected on cost/value grounds.
   This is a three-calls-candidate for the README: the kind of decision where the cheaper signal is "good enough" and the alternative would have cost real latency for marginal UX gain.
+
+## /tech/transfer — direct browser call, no server route
+
+- Decision: The transfer page calls `api.scans.transfer` directly from the browser through the existing `/api/upstream/*` proxy. No dedicated `app/api/scans/transfer/route.ts`.
+  Reasoning: Transfer has no write-backs. The two arguments for the server routes on store and deploy were (a) token security (the proxy already handles this) and (b) multi-call coordination (none here). Adding a route would be ceremony, not value. The asymmetry across the four scan screens reflects what each scan actually has to coordinate.
+  Alternative: Add a server route for symmetry. Rejected — symmetry isn't a goal; honesty about what each operation does is.
+
+## /tech/transfer — self-badge allowed (taking custody from a synthetic custodian)
+
+- Decision: Scanning the logged-in user's own badge is allowed. The client-side check is `badge !== asset.custodian`, not `badge !== getCurrentUserId()`.
+  Reasoning: Operationally, "I'm picking this up from the storage bin" is a real workflow. The asset is held by `container-storage-3`; tech-jane scans her own badge to take custody. The API correctly treats this as a valid transfer (handoff goes container-storage-3 → tech-jane). Blocking self-badge would break a legitimate pattern; the API's own `same_custodian` check catches the genuinely-redundant case (badge already equals the current custodian).
+  Alternative: Block self-badge as a guardrail against "I scanned my own badge by accident." Rejected — the API's existing check handles the redundant case, and the storage-pickup case is real.
+
+## /tech/transfer — no escalation block on disposed (THREE-CALLS CANDIDATE)
+
+- Decision: The disposed blocked-state on transfer is a clean dead end. No copy-able "talk to a manager" block, unlike the receive-mismatch and deploy-RMA cases which do offer one.
+  Reasoning: Escalation blocks exist where a manager could plausibly act — receive-mismatch (the unit may be mistagged, manager can investigate), deploy-RMA (the asset is mid-return, manager can adjust the workflow). A disposed asset's state is genuinely terminal: there's no plausible "manager fixes this" path that the platform supports. Offering an escalation affordance there would be cargo-culted UX consistency over honest dead-ending.
+  Alternative: Add the same escalation block for parity. Rejected — fake affordances are worse than honest dead ends.
+  Three-calls candidate: where to put escalation affordances is itself a design decision worth surfacing in the README.
