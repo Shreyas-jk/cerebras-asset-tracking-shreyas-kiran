@@ -74,6 +74,37 @@ Sub-items to remember on Sunday:
 - **README pushback list pulls from `errors-catalog.md`'s naming-concerns section** — eight items already drafted there. Edit to the strongest three or four for the README; keep the full list in `errors-catalog.md`.
 - **Don't push to upstream Cerebras repo.** Origin is correctly pointed at `Shreyas-jk/cerebras-asset-tracking-shreyas-kiran` since Thursday's session.
 - **Submission form:** https://forms.gle/6gxhe8Js98KGqSDx8 (from CHALLENGE.md). Needs deployed URL + GitHub link + Loom.
+- **Update README run instructions** to cover both local dev (`pnpm dev`) and the deployed URLs once they're live (API at the Railway/etc. URL, starter at the Vercel URL). Mention the env-var wiring on Vercel so a fork-and-deploy reviewer can replicate.
+
+## Deployment plan (Daniel's clarification — candidates deploy their own API)
+
+The brief implied a hosted API; per Daniel's email, the candidate deploys both halves. Plan:
+
+- **API → Railway** (free tier sufficient). Render or Fly.io as fallback if Railway gives trouble — same Node + SQLite shape works on any of the three.
+  - Deploy from this GitHub repo, build context = `api/`. Railway's monorepo support handles this with a Root Directory setting.
+  - Build command: `pnpm install && pnpm --filter @asset-tracking/api build`
+  - Start command: `node api/dist/index.js` (or set Root Dir to `api` and use `node dist/index.js`).
+  - `PORT` is read from env (defaults to 8080); Railway sets `PORT` automatically. `HOST` already defaults to `0.0.0.0`.
+  - **Heads-up:** `better-sqlite3` needs native compile. Worked locally only after switching to system Python 3.9. Railway/Render use Linux + Python 3 in their build images — *should* be fine, but flag if the build fails.
+  - **Heads-up:** SQLite file lives at `api/data/asset-tracking.db`. On Railway's free tier the filesystem is ephemeral — every redeploy reseeds from scratch via the seed code on first boot. Acceptable for a demo; if the grader pokes around and the dyno cycles, they'll see the original seed again. Not a blocker; mention in the README so it's not surprising.
+- **Starter → Vercel** via the one-click button (URL needs to be updated in `starter/README.md` to point at my fork — currently has `REPLACE_WITH_YOUR_REPO`).
+  - Set env vars in Vercel: `API_BASE_URL = <railway-url>/v1` and `API_TOKEN = <any-non-empty-string>` (the API doesn't validate the token, but the proxy refuses to start without one).
+  - The token never reaches the browser — the proxy at `app/api/upstream/[...path]` attaches it server-side. So I can use any value.
+
+**Order (don't reverse):**
+
+1. Deploy API to Railway. Wait for build to complete.
+2. Verify with curl against the deployed URL:
+   - `curl https://<railway>.up.railway.app/health` → `{"ok":true,"version":"1.0.0"}`
+   - `curl https://<railway>.up.railway.app/v1/assets?state=stored | head -c 200` → see real seed data.
+3. Deploy starter to Vercel with the env vars set. Wait for build.
+4. Open the Vercel URL in a browser. Run through:
+   - `/tech/receive` with a fresh tag → success.
+   - `/manager` → seeded asset list renders.
+   - `/manager/reconcile` → categorized report renders against the deployed API.
+5. Run the happy-path checklist (`starter/docs/happy-path.md`) against the deployed URL end-to-end before filling out the submission form.
+
+**Submission only after the deployed Vercel URL passes all ten happy-path steps.** That URL is what the grader hits.
 
 ## Things explicitly NOT planned for Sunday
 
