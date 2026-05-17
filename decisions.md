@@ -140,3 +140,16 @@ A running log. Each entry is one design call: what I did, why, and the alternati
 - Decision: The suppression line reads: "1,008 expected mismatches not shown. These are assets in storage, RMA, or disposed — facilities and finance correctly don't track them in those states." (Replaced the first draft: "1,008 expected mismatches suppressed. Storage and disposed assets don't appear in facilities by design.")
   Reasoning: The first draft used "suppressed" (technical) and "by design" (engineering voice). The final read explains WHY in operational terms — those are non-active states that downstream systems correctly ignore. Mentions RMA explicitly (the first draft omitted it). Reads in one breath. The line is doing two jobs: defusing the "wait, where are those 1,008?" question, and reassuring the manager that the suppression is intentional and correct.
   Alternative: Keep the technical phrasing. Rejected — the manager doesn't speak "by design"; she speaks "those aren't tracked because they shouldn't be."
+
+## /manager — disposed-this-month is not part of "needs attention"
+
+- Decision: The "Needs attention" composite filter is `drift OR rma_stale OR received_stale`. It does NOT include `disposed_this_month`. The disposed card is gray (informational); the other three triage cards are amber (operationally stale) or red (drift, action required).
+  Reasoning: "Needs attention" should mean "act on this today." Disposed-this-month is a monthly audit count — useful for monthly review, not for Monday standup. Folding it into the composite would put audit history in the same bucket as a live RMA, which dilutes both. The disposed card stays as its own filter chip; clicking it shows the auditable list, just not as an act-on-it call.
+  Alternative: Include disposed-this-month in `needs_attention` so the composite is "everything from the triage strip." Internally consistent, but loses the urgency signal — the triage strip mixes act-now metrics (red/amber) with informational ones (gray), and the composite should respect that grammar.
+
+## /manager — `updated_at` as proxy for last-event time
+
+- Decision: The "In RMA over 14 days" and "Received over 7 days" triage metrics use `asset.updated_at` as the proxy for "time since the last state-changing event." The strictly-correct version would fetch `/v1/assets/:tag/events` per asset and find the most recent `rma_open` / `receive` event.
+  Reasoning: Per-asset event fetching means ~1012 round-trips on a hot path. The triage strip is a 60-second-standup signal, not a regulatory audit. `updated_at` is set on every state change AND every custody transfer — so the false-negative case is "an asset that's been in `received` for 30 days, but got transferred 6 days ago, looks fresh by this metric." That's a rare case in a healthy system; if it happens often, the proxy is misleading and a v2 should switch to the event-log approach.
+  Alternative: Pull `/v1/assets/:tag/events` for every asset in the matching state, find the right event, compute the timestamp. 100% correct, but the latency cost is steep and the dev complexity is real. Rejected as premature precision.
+  This is a candidate to retire if the hot path ever surfaces the false-negative case in user reports.
