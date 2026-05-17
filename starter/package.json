@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "bwip-js": "^4.10.1",
-    "next": "15.0.4",
+    "next": "15.5.18",
     "react": "19.0.0",
     "react-dom": "19.0.0"
   },
