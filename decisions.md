@@ -122,3 +122,21 @@ A running log. Each entry is one design call: what I did, why, and the alternati
   Reasoning: A taxonomy that maps cleanly to action beats one that classifies every difference. If `ambiguous` swallowed every state/finance mismatch, the category would become a catch-all the manager learns to ignore. Keeping it narrow means: when it fires, it's genuinely something I couldn't disambiguate (e.g. an in-service asset whose finance status is `impaired` — that's a real "what happened?"). Expected to fire rarely against clean data, and that's fine.
   Alternative: Relax the definition to flag any ops-state / finance-status disagreement. Higher recall, but the precision of "action_required" vs. "investigate" collapses — every disposed asset with stale finance ends up in the same bucket as a real state-of-the-asset question. Rejected: the categories exist to inform the manager what to do, not to perform a complete classification of the universe.
   Three-calls candidate: deliberately defining categories around action rather than around completeness.
+
+## /manager/reconcile — no clickable filters on the triage summary row
+
+- Decision: The three big numbers at the top of the page (`4 to act on · 1 to investigate · 1 to monitor`) are visual anchors only. They are not clickable filters that hide other findings.
+  Reasoning: With ~6 findings total in seeded data — and a similar order of magnitude expected in production after the seeded drift is cleared — filtering is friction without payoff. The grouping below already does the work: the manager scans the summary, then reads the group their attention is drawn to. Adding a filter introduces filter state, an active-filter indicator, and a "show all" reset, plus tests for each.
+  Alternative: Make the numbers clickable to filter the findings list. Cheap to add. Rejected at this scale; revisit if a future version of the report routinely has dozens of findings per group.
+
+## /manager/reconcile — voice consistency on triage labels
+
+- Decision: The summary row reads as a sentence: "4 to act on · 1 to investigate · 1 to monitor." Section headers use the more compact `Act on · 4`, `Investigate · 1`, `Monitor · 1` form. The raw category names (`action_required` etc.) appear only in the JSON API.
+  Reasoning: Raw category names like `action_required` read as database fields, not as language a manager uses. The summary row at the top of the page is the manager-facing voice — it should be a phrase the manager can read in one breath. The technical names are scaffolding; they live in section labels and the API for callers, not in the prose at the top.
+  Alternative: Use the same string in both summary and section header ("ACTION REQUIRED — 4 items"). Rejected because the summary row is doing rhetorical work — it's the first thing the manager reads — and the prose voice belongs there.
+
+## /manager/reconcile — suppression copy framed operationally
+
+- Decision: The suppression line reads: "1,008 expected mismatches not shown. These are assets in storage, RMA, or disposed — facilities and finance correctly don't track them in those states." (Replaced the first draft: "1,008 expected mismatches suppressed. Storage and disposed assets don't appear in facilities by design.")
+  Reasoning: The first draft used "suppressed" (technical) and "by design" (engineering voice). The final read explains WHY in operational terms — those are non-active states that downstream systems correctly ignore. Mentions RMA explicitly (the first draft omitted it). Reads in one breath. The line is doing two jobs: defusing the "wait, where are those 1,008?" question, and reassuring the manager that the suppression is intentional and correct.
+  Alternative: Keep the technical phrasing. Rejected — the manager doesn't speak "by design"; she speaks "those aren't tracked because they shouldn't be."
