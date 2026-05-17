@@ -115,3 +115,10 @@ A running log. Each entry is one design call: what I did, why, and the alternati
   Reasoning: Escalation blocks exist where a manager could plausibly act — receive-mismatch (the unit may be mistagged, manager can investigate), deploy-RMA (the asset is mid-return, manager can adjust the workflow). A disposed asset's state is genuinely terminal: there's no plausible "manager fixes this" path that the platform supports. Offering an escalation affordance there would be cargo-culted UX consistency over honest dead-ending.
   Alternative: Add the same escalation block for parity. Rejected — fake affordances are worse than honest dead ends.
   Three-calls candidate: where to put escalation affordances is itself a design decision worth surfacing in the README.
+
+## /api/reconcile — keep `ambiguous` narrow (THREE-CALLS CANDIDATE)
+
+- Decision: The `ambiguous` category is defined narrowly: `ops_state === "in_service" && finance.status` is something other than `capitalized` or `pending_receipt`. Most apparent-disagreements (disposed-in-ops + capitalized-in-finance) are absorbed by `state_scope_drift` because the recovery there is clearer.
+  Reasoning: A taxonomy that maps cleanly to action beats one that classifies every difference. If `ambiguous` swallowed every state/finance mismatch, the category would become a catch-all the manager learns to ignore. Keeping it narrow means: when it fires, it's genuinely something I couldn't disambiguate (e.g. an in-service asset whose finance status is `impaired` — that's a real "what happened?"). Expected to fire rarely against clean data, and that's fine.
+  Alternative: Relax the definition to flag any ops-state / finance-status disagreement. Higher recall, but the precision of "action_required" vs. "investigate" collapses — every disposed asset with stale finance ends up in the same bucket as a real state-of-the-asset question. Rejected: the categories exist to inform the manager what to do, not to perform a complete classification of the universe.
+  Three-calls candidate: deliberately defining categories around action rather than around completeness.
