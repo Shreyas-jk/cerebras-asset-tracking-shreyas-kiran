@@ -111,6 +111,13 @@ function applyFilter(
   }
 }
 
+function locationSortKey(a: Asset): string {
+  const l = a.location;
+  return [l.site ?? "", l.room ?? "", l.row ?? "", l.rack ?? "", l.ru ?? ""].join(
+    "/",
+  );
+}
+
 function applySort(
   assets: Asset[],
   sort: SortColumn,
@@ -119,11 +126,19 @@ function applySort(
   const mult = dir === "desc" ? -1 : 1;
   const sorted = [...assets];
   switch (sort) {
+    case "model":
+      sorted.sort((a, b) => a.model.localeCompare(b.model) * mult);
+      break;
     case "state":
       sorted.sort((a, b) => a.state.localeCompare(b.state) * mult);
       break;
     case "custodian":
       sorted.sort((a, b) => a.custodian.localeCompare(b.custodian) * mult);
+      break;
+    case "location":
+      sorted.sort(
+        (a, b) => locationSortKey(a).localeCompare(locationSortKey(b)) * mult,
+      );
       break;
     case "updated":
       sorted.sort((a, b) => a.updated_at.localeCompare(b.updated_at) * mult);

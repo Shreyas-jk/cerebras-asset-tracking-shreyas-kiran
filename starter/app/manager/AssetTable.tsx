@@ -1,9 +1,16 @@
 import Link from "next/link";
 import type { Asset } from "@/lib/types";
 
-export type SortColumn = "tag" | "state" | "custodian" | "updated";
+export type SortColumn = "tag" | "model" | "state" | "custodian" | "location" | "updated";
 
-export const SORT_COLUMNS: SortColumn[] = ["tag", "state", "custodian", "updated"];
+export const SORT_COLUMNS: SortColumn[] = [
+  "tag",
+  "model",
+  "state",
+  "custodian",
+  "location",
+  "updated",
+];
 
 export function isSortColumn(value: string | undefined | null): value is SortColumn {
   return (SORT_COLUMNS as string[]).includes(value ?? "");
@@ -121,9 +128,13 @@ export function AssetTable({
                 currentDir={dir}
                 buildSortUrl={buildSortUrl}
               />
-              <th className="text-left text-xs font-semibold uppercase tracking-wide text-gray-600 px-3 py-2">
-                Model
-              </th>
+              <SortableHeader
+                column="model"
+                label="Model"
+                currentSort={sort}
+                currentDir={dir}
+                buildSortUrl={buildSortUrl}
+              />
               <SortableHeader
                 column="state"
                 label="State"
@@ -138,9 +149,13 @@ export function AssetTable({
                 currentDir={dir}
                 buildSortUrl={buildSortUrl}
               />
-              <th className="text-left text-xs font-semibold uppercase tracking-wide text-gray-600 px-3 py-2">
-                Location
-              </th>
+              <SortableHeader
+                column="location"
+                label="Location"
+                currentSort={sort}
+                currentDir={dir}
+                buildSortUrl={buildSortUrl}
+              />
               <SortableHeader
                 column="updated"
                 label="Updated"
