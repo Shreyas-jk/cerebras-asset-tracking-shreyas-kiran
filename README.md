@@ -2,6 +2,8 @@
 
 Submitted as a take-home for Cerebras's AI Builder Challenge.
 
+Four mobile-first scan workflows for the technician at the receiving dock, plus a desktop dashboard where a manager can spot drift across operations, facilities, and finance in under a minute.
+
 ## Demo
 
 - **Frontend (Vercel)**: https://cerebras-asset-tracking-shreyas-kir.vercel.app/
@@ -73,6 +75,8 @@ The brief explicitly calls subtraction a skill. The things I chose not to build,
 - **Tests beyond the existing `ScanInput.test.tsx`.** I prioritized communication and reconciliation polish over integration tests this round. Tests come back in any longer-lived codebase.
 - **Bulk import/export, CSV, undo, offline queueing, parent-child assets.** All out of scope per the brief.
 - **Real escalation flow when scan errors need a manager.** The receive-mismatch and deploy-RMA panels show a "Talk to a manager" affordance that expands a copy-able message block with the relevant IDs. There's no flag API in v1, so a button that promises to escalate would be lying. An honest dead-end with a copy-able message reads better. The disposed-transfer case has no escalation block at all, because that state is genuinely terminal.
+
+And things I almost added during the build but didn't — search on the manager list, role gating on the routes, a print-from-anywhere barcode button. Each one felt like a feature looking for a workflow gap. The brief specifically calls subtraction a skill, so those stayed cut.
 
 ---
 
