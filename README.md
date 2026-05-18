@@ -172,4 +172,6 @@ The long-form design decisions are in `decisions.md`. The error catalog and nami
 
 Form: https://forms.gle/6gxhe8Js98KGqSDx8 — Vercel URL, this GitHub repo link, and a 3–5 minute Loom.
 
+Loom: https://www.loom.com/share/767a630dba994bac822d89194b2da310
+
 MIT licensed. See `LICENSE`.
