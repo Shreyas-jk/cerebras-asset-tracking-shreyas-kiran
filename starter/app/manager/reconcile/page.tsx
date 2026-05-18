@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { headers } from "next/headers";
 import { RefreshButton } from "./RefreshButton";
 import {
@@ -248,7 +249,12 @@ function FindingCard({
       className={`bg-white border-l-4 ${borderClass} border-y border-r border-gray-200 rounded-r-md p-3 print:break-inside-avoid`}
     >
       <div className="flex items-baseline justify-between gap-2">
-        <span className="font-mono font-semibold text-base">{finding.asset_tag}</span>
+        <Link
+          href={`/manager/assets/${finding.asset_tag}`}
+          className="font-mono font-semibold text-base text-blue-700 underline underline-offset-2 hover:text-blue-900"
+        >
+          {finding.asset_tag}
+        </Link>
         <Chip>{CATEGORY_LABEL[finding.category]}</Chip>
       </div>
       <div className="mt-2">
